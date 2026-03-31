@@ -1,0 +1,24 @@
+# Virtual environment
+venv/
+
+# Compiled bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Collected data (large, reproducible via pipeline)
+data/
+
+# Runtime logs
+logs/
+
+# Environment variables
+.env
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
