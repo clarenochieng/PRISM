@@ -1,41 +1,26 @@
 import json
 import os
-import ssl
 from datetime import datetime
 
 import pandas as pd
-import requests
 
 from src.utils.logger import get_logger
-
-ssl._create_default_https_context = ssl._create_unverified_context
 
 MANIFEST_PATH = "manifest.json"
 log = get_logger(__name__)
 
 
+SP500_CSV = "data/reference/sp500_tickers.csv"
+
+
 def get_sp500_tickers():
-    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-    headers = {
-        "User-Agent": "PRISM-Data-Bot/1.0 (contact: your-email@example.com)"
-    }
     try:
-        response = requests.get(url, headers=headers, verify=False)
-        response.raise_for_status()
-        tables = pd.read_html(response.text)
-        df = tables[0]
-        df["Symbol"] = df["Symbol"].str.replace(".", "-", regex=False)
-        tickers = (
-            df[["Symbol", "Security"]]
-            .rename(columns={"Symbol": "ticker", "Security": "name"})
-            .to_dict("records")
-        )
-        log.info("Fetched %d tickers from Wikipedia.", len(tickers))
+        df = pd.read_csv(SP500_CSV)
+        tickers = df[["ticker", "name"]].to_dict("records")
+        log.info("Loaded %d tickers from %s.", len(tickers), SP500_CSV)
         return tickers
     except Exception as e:
-        log.error(
-            "Failed to fetch S&P 500 tickers: %s. Using fallback list.", e
-        )
+        log.error("Failed to load tickers from %s: %s.", SP500_CSV, e)
         return [
             {"ticker": "AAPL", "name": "Apple Inc."},
             {"ticker": "MSFT", "name": "Microsoft Corp."},

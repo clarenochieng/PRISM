@@ -22,32 +22,50 @@ class SECScraper:
         response.raise_for_status()
         return response
 
-    def get_8k_filings(self, ticker, count=100):
+    def _fetch_page(self, ticker, start, page_size):
         params = {
             "action": "getcompany",
             "CIK": ticker,
             "type": "8-K",
             "output": "atom",
-            "count": count,
+            "count": page_size,
+            "start": start,
         }
+        response = self._make_request(self.base_url, params=params)
+        soup = BeautifulSoup(response.content, "xml")
+        entries = soup.find_all("entry")
+        page = []
+        for entry in entries:
+            page.append(
+                {
+                    "ticker": ticker,
+                    "type": "8-K",
+                    "date": entry.find("updated").text[:10],
+                    "link": entry.find("link")["href"].replace(
+                        "-index.htm", ".txt"
+                    ),
+                }
+            )
+        return page
+
+    def get_8k_filings(self, ticker, count=100):
+        PAGE_SIZE = 100
+        all_filings = []
+        start = 0
         try:
-            response = self._make_request(self.base_url, params=params)
-            soup = BeautifulSoup(response.content, "xml")
-            entries = soup.find_all("entry")
-            filings = []
-            for entry in entries:
-                filings.append(
-                    {
-                        "ticker": ticker,
-                        "type": "8-K",
-                        "date": entry.find("updated").text[:10],
-                        "link": entry.find("link")["href"].replace(
-                            "-index.htm", ".txt"
-                        ),
-                    }
-                )
-            log.info("Found %d 8-K filings for %s.", len(filings), ticker)
-            return filings
+            while len(all_filings) < count:
+                page = self._fetch_page(ticker, start, PAGE_SIZE)
+                if not page:
+                    break
+                all_filings.extend(page)
+                if len(page) < PAGE_SIZE:
+                    break
+                start += PAGE_SIZE
+            all_filings = all_filings[:count]
+            log.info(
+                "Found %d 8-K filings for %s.", len(all_filings), ticker
+            )
+            return all_filings
         except Exception as e:
             log.error("Failed to fetch 8-K filings for %s: %s", ticker, e)
             return []
